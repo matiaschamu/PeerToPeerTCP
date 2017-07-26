@@ -268,8 +268,7 @@ namespace Servidor_TCP
 		{
 			if (radioButtonUDP.Enabled == true)
 			{
-				peerToPeerUdp1.EndPointRemoto = new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text));
-				peerToPeerUdp1.Send(textBoxDatosEnviados.Text);
+				
 				textBoxDatosEnviados.Clear();
 			}
 			else
@@ -301,7 +300,7 @@ namespace Servidor_TCP
 			}
 			else
 			{
-				peerToPeerUdp1.Listen(ushort.Parse(textBoxPuertoServidor.Text));
+				
 			}
 		}
 
@@ -313,7 +312,7 @@ namespace Servidor_TCP
 			}
 			else
 			{
-				peerToPeerUdp1.ListenStop();
+				
 			}
 		}
 
@@ -416,7 +415,7 @@ namespace Servidor_TCP
 			}
 			else
 			{
-				textBoxStatusControl.Text = peerToPeerUdp1.Status();
+				
 			}
 		}
 
@@ -480,7 +479,7 @@ namespace Servidor_TCP
 		{
 			if (radioButtonUDP.Checked == true)
 			{
-				peerToPeerUdp1.EndPointRemoto = new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text));
+				
 				//peerToPeerUdp1.TipoSock = PeerToPeer.Tcp.PeerToPeerTcp.eTipoSock.UDP;
 			}
 		}

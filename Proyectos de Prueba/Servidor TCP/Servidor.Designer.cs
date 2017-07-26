@@ -1,7 +1,6 @@
 ﻿
 
 
-using PeerToPeer.Udp;
 
 namespace Servidor_TCP
 {
@@ -88,7 +87,7 @@ namespace Servidor_TCP
 			this.groupBox3 = new System.Windows.Forms.GroupBox();
 			this.groupBox4 = new System.Windows.Forms.GroupBox();
 			this.peerToPeerTcp1 = new PeerToPeer.Tcp.PeerToPeerTcp(this.components);
-			this.peerToPeerUdp1 = new PeerToPeer.Udp.PeerToPeerUdp(this.components);
+
 			this.groupBoxCliente.SuspendLayout();
 			this.tableLayoutPanel2.SuspendLayout();
 			this.panel4.SuspendLayout();
@@ -714,13 +713,6 @@ namespace Servidor_TCP
 			this.peerToPeerTcp1.ComandoRecibido += new PeerToPeer.Tcp.PeerToPeerTcp.ConexionEventHandler(this.clienteServidorTCP_UDP1_ComandoRecibido);
 			this.peerToPeerTcp1.ConexionPerdida += new PeerToPeer.Tcp.PeerToPeerTcp.ConexionEventHandler(this.clienteServidorTCP_UDP1_ConexionPerdida);
 			// 
-			// peerToPeerUdp1
-			// 
-			this.peerToPeerUdp1.EndPointRemoto = null;
-			this.peerToPeerUdp1.PuertoEscucha = ((ushort)(80));
-			this.peerToPeerUdp1.TestearConexion = false;
-			this.peerToPeerUdp1.TiempomSegTestConexion = 1000;
-			// 
 			// Servidor
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -824,7 +816,7 @@ namespace Servidor_TCP
 		private System.Windows.Forms.GroupBox groupBox2;
 		private System.Windows.Forms.GroupBox groupBox3;
 		private System.Windows.Forms.GroupBox groupBox4;
-	    private PeerToPeerUdp peerToPeerUdp1;
+
     }
 }
 
