@@ -4,18 +4,15 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{58746450-C39E-4E13-82A5-1310540E6FA2}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <ProjectGuid>{0ACF9817-52FA-48C3-95C1-F313AB2D1712}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Servidor_TCP</RootNamespace>
-    <AssemblyName>Cliente y ServidorTCPUDP</AssemblyName>
+    <RootNamespace>BibliotecaMaf.Componentes.PeerToPeer.Tcp</RootNamespace>
+    <AssemblyName>PeerToPeerTcp</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile>
-    </TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -25,7 +22,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -51,59 +47,28 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
-  <PropertyGroup>
-    <ApplicationIcon>VS2012.ico</ApplicationIcon>
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Servidor.cs">
-      <SubType>Form</SubType>
+    <Compile Include="Commando.cs" />
+    <Compile Include="PeerToPeerTcp.cs">
+      <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Servidor.Designer.cs">
-      <DependentUpon>Servidor.cs</DependentUpon>
+    <Compile Include="PeerToPeerTcp.Designer.cs">
+      <DependentUpon>PeerToPeerTcp.cs</DependentUpon>
     </Compile>
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Servidor.resx">
-      <DependentUpon>Servidor.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
-    </Compile>
-    <None Include="app.config" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="VS2012.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\PeerToPeerTcp\PeerToPeerTcp.csproj">
-      <Project>{0acf9817-52fa-48c3-95c1-f313ab2d1712}</Project>
-      <Name>PeerToPeerTcp</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\PeerToPeerUdp\PeerToPeerUdp.csproj">
-      <Project>{51def4de-cf4e-45e0-8eb8-c87e2bec8f8e}</Project>
-      <Name>PeerToPeerUdp</Name>
-    </ProjectReference>
+    <Compile Include="SockEventArgs.cs" />
+    <Service Include="{94E38DFF-614B-4cbd-B67C-F211BB35CE8B}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

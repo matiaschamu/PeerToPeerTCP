@@ -1,6 +1,7 @@
-﻿namespace PeerToPeerTcpUdp
+﻿
+namespace PeerToPeer.Tcp
 {
-	partial class PeerToPeerTcpUdp
+	partial class PeerToPeerTcp
 	{
 		/// <summary>
 		/// Variable del diseñador requerida.

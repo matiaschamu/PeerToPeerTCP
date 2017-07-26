@@ -266,55 +266,85 @@ namespace Servidor_TCP
 
 		private void buttonEnviarCliente_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.Send(textBoxDatosEnviados.Text);
-			textBoxDatosEnviados.Clear();
+			if (radioButtonUDP.Enabled == true)
+			{
+				peerToPeerUdp1.EndPointRemoto = new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text));
+				peerToPeerUdp1.Send(textBoxDatosEnviados.Text);
+				textBoxDatosEnviados.Clear();
+			}
+			else
+			{
+				peerToPeerTcp1.Send(textBoxDatosEnviados.Text);
+				textBoxDatosEnviados.Clear();
+			}
+
+
+			//if (peerToPeerTcp1.TipoSock == PeerToPeer.Tcp.PeerToPeerTcp.eTipoSock.UDP)
+			//{
+			//	peerToPeerTcp1.EndPointRemoto = new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text));
+			//}
+			
 		}
 
 		private void buttonEnviarCommando_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.SendComando(textBoxEnviarComando.Text, textBoxEnviarDato.Text);
+			peerToPeerTcp1.SendComando(textBoxEnviarComando.Text, textBoxEnviarDato.Text);
 			textBoxEnviarDato.Clear();
 		}
 
 
 		private void buttonSetPuerto_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.Listen(ushort.Parse(textBoxPuertoServidor.Text));
+			if (radioButtonTCP.Checked==true)
+			{
+				peerToPeerTcp1.Listen(ushort.Parse(textBoxPuertoServidor.Text));
+			}
+			else
+			{
+				peerToPeerUdp1.Listen(ushort.Parse(textBoxPuertoServidor.Text));
+			}
 		}
 
 		private void buttonunSet_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.ListenStop();
+			if (radioButtonTCP.Checked == true)
+			{
+				peerToPeerTcp1.ListenStop();
+			}
+			else
+			{
+				peerToPeerUdp1.ListenStop();
+			}
 		}
 
 		private void buttonConectar_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.Connect(new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text)));
+			peerToPeerTcp1.Connect(new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text)));
 		}
 
 		private void buttonDesConectar_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.Disconnect();
+			peerToPeerTcp1.Disconnect();
 		}
 
 		private void buttonSetInterval_Click(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.TiempomSegTestConexion = int.Parse(textBoxIntervalTest.Text);
+			peerToPeerTcp1.TiempomSegTestConexion = int.Parse(textBoxIntervalTest.Text);
 		}
 
 		private void checkBoxTestConnect_CheckedChanged(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.TestearConexion = checkBoxTestConnect.Checked;
+			peerToPeerTcp1.TestearConexion = checkBoxTestConnect.Checked;
 		}
 
 		private void checkBoxReConnect_CheckedChanged(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.ReConexionAutomatica = checkBoxReConnect.Checked;
+			peerToPeerTcp1.ReConexionAutomatica = checkBoxReConnect.Checked;
 		}
 
 		private void checkBoxReListen_CheckedChanged(object sender, EventArgs e)
 		{
-			clienteServidorTCP_UDP1.ReListenAutomatico = checkBoxReListen.Checked;
+			peerToPeerTcp1.ReListenAutomatico = checkBoxReListen.Checked;
 		}
 
 
@@ -322,30 +352,31 @@ namespace Servidor_TCP
 
 
 
-		private void clienteServidorTCP_UDP1_ConexionEstablecida(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_ConexionEstablecida(object sender, PeerToPeer.Tcp.  SockEventArgs e)
 		{
 			EscribirLabelInformacion("Conectado");
 		}
 
-		private void clienteServidorTCP_UDP1_ConexionPerdida(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_ConexionPerdida(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			EscribirLabelInformacion("Conexion Perdida");
 		}
 
-		private void clienteServidorTCP_UDP1_ConexionCancelada(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_ConexionCancelada(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			EscribirLabelInformacion("Conexion cancelada");
 		}
 
-		private void clienteServidorTCP_UDP1_DatosRecibidos(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_DatosRecibidos(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
+			
 			mBytesRecibidosCount += e.DatosRecibidos.Length;
 			EscribirLabelBytesCount("recibido: " + mBytesRecibidosCount);
-			clienteServidorTCP_UDP1.ClearBufferEntrada();
-			//EscribirTextoDatosRecibidos(clienteServidorTCP_UDP1.GetDataString() + "\r\n");
+			EscribirTextoDatosRecibidos(peerToPeerTcp1.GetDataString() + "\r\n");
+			peerToPeerTcp1.ClearBufferEntrada();
 		}
 
-		private void clienteServidorTCP_UDP1_ComandoRecibido(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_ComandoRecibido(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			mComandosRecibidosCount++;
 			EscribirLabelComandosCount("recibido: " + mComandosRecibidosCount);
@@ -356,39 +387,38 @@ namespace Servidor_TCP
 				F.Write(e.ComandoRecibido.DatosBytes, 0, e.ComandoRecibido.DatosBytes.Length);
 				F.Close();
 			}
-
-			
-
-
-			//EscribirTextoComando(e.ComandoRecibido.CommandoString + " -> " + e.ComandoRecibido.DatosString + "\r\n");
+			else
+			{
+				EscribirTextoComando(e.ComandoRecibido.CommandoString + " -> " + e.ComandoRecibido.DatosString + "\r\n");
+			}
 		}
 
-		private void clienteServidorTCP_UDP1_EscuchaIniciada(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_EscuchaIniciada(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			EscribirLabelInformacion("Escuchando");
 		}
 
-		private void clienteServidorTCP_UDP1_EscuchaCancelada(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_EscuchaCancelada(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			EscribirLabelInformacion("Escuha cancelada");
 		}
 
-		private void clienteServidorTCP_UDP1_EscuchaIniciando(object sender, PeerToPeerTcpUdp.SockEventArgs e)
+		private void clienteServidorTCP_UDP1_EscuchaIniciando(object sender, PeerToPeer.Tcp.SockEventArgs e)
 		{
 			EscribirLabelInformacion("Iniciando escucha...");
 		}
 
 		private void timerStatus_Tick(object sender, EventArgs e)
 		{
-			textBoxStatusControl.Text = clienteServidorTCP_UDP1.Status();
+			if (radioButtonTCP.Checked == true)
+			{
+				textBoxStatusControl.Text = peerToPeerTcp1.Status();
+			}
+			else
+			{
+				textBoxStatusControl.Text = peerToPeerUdp1.Status();
+			}
 		}
-
-
-
-
-
-
-
 
 
 		private void buttonEnviarRafaga_Click(object sender, EventArgs e)
@@ -398,7 +428,7 @@ namespace Servidor_TCP
 			{
 				mData[mI] = (byte) mI;
 			}
-			clienteServidorTCP_UDP1.Send(mData);
+			peerToPeerTcp1.Send(mData);
 		}
 
 		private void buttonEnviarArchivo_Click(object sender, EventArgs e)
@@ -415,13 +445,13 @@ namespace Servidor_TCP
 				{
 					if (mBytesLeidos == 10000)
 					{
-						clienteServidorTCP_UDP1.SendComando("Archivo.zip", Data);
+						peerToPeerTcp1.SendComando("Archivo.zip", Data);
 					}
 					else
 					{
 						byte[] mD = Data;
 						Array.Resize(ref mD, mBytesLeidos);
-						clienteServidorTCP_UDP1.SendComando("Archivo.zip", mD);
+						peerToPeerTcp1.SendComando("Archivo.zip", mD);
 					}
 					mBytesLeidos = S.Read(Data, offset, 10000);
 				} while (mBytesLeidos > 0);
@@ -438,7 +468,25 @@ namespace Servidor_TCP
 
 		}
 
+		private void radioButtonTCP_CheckedChanged(object sender, EventArgs e)
+		{
+			//if (radioButtonTCP.Checked == true)
+			//{
+			//	peerToPeerTcp1.TipoSock = PeerToPeer.Tcp.PeerToPeerTcp.eTipoSock.TCP;
+			//}
+		}
 
+		private void radioButtonUDP_CheckedChanged(object sender, EventArgs e)
+		{
+			if (radioButtonUDP.Checked == true)
+			{
+				peerToPeerUdp1.EndPointRemoto = new IPEndPoint(IPAddress.Parse(textBox1.Text), int.Parse(textBoxPuertoCliente.Text));
+				//peerToPeerUdp1.TipoSock = PeerToPeer.Tcp.PeerToPeerTcp.eTipoSock.UDP;
+			}
+		}
+
+		
+	
 
 
 	}

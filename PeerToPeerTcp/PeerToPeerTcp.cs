@@ -4,15 +4,22 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Timers;
-using PeerToPeerTcpUdp;
 
-namespace PeerToPeerTcpUdp
+
+
+namespace PeerToPeer.Tcp
 {
-	public partial class PeerToPeerTcpUdp : Component
+	public partial class PeerToPeerTcp : Component
 	{
+		#region "Declaraciones"
+
 		public delegate void ConexionEventHandler(object sender, SockEventArgs e);
 
 		public event ConexionEventHandler ConexionEstablecida;
@@ -33,15 +40,27 @@ namespace PeerToPeerTcpUdp
 			/// El sock se encuentra cerrado
 			/// </summary>
 			Cerrado = 0,
+
 			/// <summary>
 			/// El sock se encuentra intentando la conexion
 			/// </summary>
 			Conectando = 1,
+
 			/// <summary>
 			/// El sock esta conectado a un end point remoto
 			/// </summary>
 			Handshaking = 2
 		}
+
+		/// <summary>
+		/// Enumera el tipo de Sock TCP/UDP
+		/// </summary>
+		public enum eTipoSock
+		{
+			UDP = 0,
+			TCP = 1
+		}
+
 		/// <summary>
 		/// Enumera los estados del sock de escucha
 		/// </summary>
@@ -51,15 +70,18 @@ namespace PeerToPeerTcpUdp
 			/// El sock de escucha se encuentra cerrado
 			/// </summary>
 			Cerrado = 0,
+
 			/// <summary>
 			/// El sock de escucha se encuentra intentado abrir la conexion
 			/// </summary>
 			AbriendoEscucha = 1,
+
 			/// <summary>
 			/// El sock de escucha se encuentra en estado de escucha
 			/// </summary>
 			Escuchando = 2,
 		}
+
 		private enum eEstadoComando
 		{
 			SinComando = 0,
@@ -67,6 +89,7 @@ namespace PeerToPeerTcpUdp
 			GuardandoDatos = 2,
 			ComandoFinalizado = 3,
 		}
+
 		private enum eCaracteresEsp
 		{
 			Barra = 0,
@@ -79,8 +102,13 @@ namespace PeerToPeerTcpUdp
 
 		private System.Net.Sockets.TcpListener mSockTcpEscucha;
 		private System.Net.Sockets.TcpClient mSockTcp;
-		private System.Net.Sockets.UdpClient mSockUdp;
-		private System.Threading.Thread mTHreadEscucha;
+		private System.Net.Sockets.UdpClient mSockUdpSender;
+		private System.Net.Sockets.UdpClient mSockUdpReceive;
+		private System.Threading.Thread mTHreadEnvioEscucha;
+		private Task mTareaEscuchaUDP;
+		private System.Threading.CancellationToken mTokenCancelmTareaEscuchaUDP;
+		private System.Threading.CancellationTokenSource mTokenSourceCancelmTareaEscuchaUDP;
+
 		private System.Threading.Semaphore mSempBufferEntrada = new System.Threading.Semaphore(1, 1);
 		private System.Threading.Semaphore mSempBufferSalida = new System.Threading.Semaphore(1, 1);
 
@@ -95,9 +123,10 @@ namespace PeerToPeerTcpUdp
 		private System.Net.IPEndPoint mIpRemota;
 		private eEstadosSock mEstadoSock = eEstadosSock.Cerrado;
 		private eEstadosListen mEstadoListen = eEstadosListen.Cerrado;
+		//private eTipoSock mTipoSock = eTipoSock.TCP;
 		private System.Timers.Timer mTimer;
 		private List<byte> mBufferEntrada = new List<byte>();
-		private List<byte>  mBufferSalida = new List<byte>();
+		private List<byte> mBufferSalida = new List<byte>();
 		//private byte[] mBufferSalida = new byte[0];
 		//private Byte mUltimoRecibido = 255;
 		private ushort mPuertoEscucha = 80;
@@ -119,160 +148,148 @@ namespace PeerToPeerTcpUdp
 		private Single mVelocidadDeSubida = 0;
 		private Single mVelocidadDeBajada = 0;
 
+		#endregion "Declaraciones"
+
 		#region "Propiedades"
+
+		//public eTipoSock TipoSock
+		//{
+		//	get { return mTipoSock; }
+		//	set
+		//	{
+		//		if (mEstadoListen != eEstadosListen.Cerrado || mEstadoSock != eEstadosSock.Cerrado)
+		//		{
+		//			throw new Exception("Sock no cerrado!");
+		//		}
+		//		else
+		//		{
+		//			mTipoSock = value;
+		//			if (mTipoSock == eTipoSock.UDP)
+		//			{
+		//				Connect();
+		//			}
+		//		}
+		//	}
+		//}
+
 		/// <summary>
 		/// Devuelve el estado del Sock
 		/// </summary>
 		public eEstadosSock EstadoSock
 		{
-			get
-			{
-				return mEstadoSock;
-			}
+			get { return mEstadoSock; }
 		}
+
 		/// <summary>
 		/// Devuelve el estado del sock de escucha
 		/// </summary>
 		public eEstadosListen EstadoListen
 		{
-			get
-			{
-				return mEstadoListen;
-			}
+			get { return mEstadoListen; }
 		}
+
 		/// <summary>
 		/// Devuelve true si el sock se encuentra escuchando algun puerto. sino devuelve false.
 		/// </summary>
 		public bool Escuchando
 		{
-			get
-			{
-				return mEscuchando;
-			}
+			get { return mEscuchando; }
 		}
+
 		/// <summary>
 		/// Devuelve o establece el numero de puerto usado para escucha.
 		/// </summary>
 		public ushort PuertoEscucha
 		{
-			get
-			{
-				return mPuertoEscucha;
-			}
-			set
-			{
-				mPuertoEscucha = value;
-			}
+			get { return mPuertoEscucha; }
+			set { mPuertoEscucha = value; }
 		}
+
 		/// <summary>
 		/// Devuelve la cantidad de bytes en el buffer de envio
 		/// </summary>
 		public long CantidadDatosBufferEnvio
 		{
-			get
-			{
-				return mBufferSalida.Count;
-			}
+			get { return mBufferSalida.Count; }
 		}
+
 		/// <summary>
 		/// Devuelve la cantidad de bytes en el buffer de recepcion.
 		/// </summary>
 		public long CantidadDatosBufferRecepcion
 		{
-			get
-			{
-				return mBufferEntrada.Count;
-			}
+			get { return mBufferEntrada.Count; }
 		}
+
 		/// <summary>
 		/// Devuelve o establece el End Point remoto
 		/// </summary>
 		public System.Net.IPEndPoint EndPointRemoto
 		{
-			get
-			{
-				return mIpRemota;
-			}
+			get { return mIpRemota; }
 			set
 			{
-				if (EstadoSock == eEstadosSock.Cerrado)
+				if (EstadoSock == eEstadosSock.Cerrado) //|| TipoSock == eTipoSock.UDP
 				{
 					mIpRemota = value;
 					Console.WriteLine("Ip Remoto Cambiado");
+					//if (mTipoSock == eTipoSock.UDP)
+					//{
+					//	Connect();
+					//}
 				}
 			}
 		}
+
 		/// <summary>
 		/// Devuelve o establece un valor que indica si el control se pone a la escucha automaticamente en caso de perdida de conexion.
 		/// </summary>
 		public bool ReListenAutomatico
 		{
-			get
-			{
-				return mReListenAutomatico;
-			}
-			set
-			{
-				mReListenAutomatico = value;
-			}
+			get { return mReListenAutomatico; }
+			set { mReListenAutomatico = value; }
 		}
+
 		/// <summary>
 		/// Devuelve o establece un valor que indica si el control debe testear la conexion para detectar posibles desconexiones.
 		/// </summary>
 		public bool TestearConexion
 		{
-			get
-			{
-				return mTestearConexion;
-			}
-			set
-			{
-				mTestearConexion = value;
-			}
+			get { return mTestearConexion; }
+			set { mTestearConexion = value; }
 		}
+
 		/// <summary>
 		/// Devuelve o establece un valor que indica si el control se reconecta automaticamente en caso de perdida de conexion.
 		/// </summary>
 		public bool ReConexionAutomatica
 		{
-			get
-			{
-				return mReConexionAutomatica;
-			}
-			set
-			{
-				mReConexionAutomatica = value;
-			}
+			get { return mReConexionAutomatica; }
+			set { mReConexionAutomatica = value; }
 		}
+
 		/// <summary>
 		/// Devuelve la cantidad de bytes trasmitidos por el control.
 		/// </summary>
 		public long CantBytesTrasmitidos
 		{
-			get
-			{
-				return mCantBytesTrasmitidos;
-			}
+			get { return mCantBytesTrasmitidos; }
 		}
+
 		/// <summary>
 		/// Devuelve la cantidad de bytes recibidos por el control
 		/// </summary>
 		public long CantBytesRecibidos
 		{
-			get
-			{
-				return mCantBytesRecibidos;
-			}
+			get { return mCantBytesRecibidos; }
 		}
+
 		/// <summary>
 		/// Devuelve o establece el tiempo que transcurre entre cada test de conexion.
 		/// </summary>
 		public int TiempomSegTestConexion
 		{
-			get
-			{
-				return mTiempomSegTestConexion;
-			}
+			get { return mTiempomSegTestConexion; }
 			set
 			{
 				mTiempomSegTestConexion = value;
@@ -297,6 +314,7 @@ namespace PeerToPeerTcpUdp
 		{
 			get { return mVelocidadDeSubida; }
 		}
+
 		/// <summary>
 		/// Devuelve la velocidad de bajada en bit/s para pasar a kb/s divida este valor por 1000
 		/// o dividalo por  1000000 para obtenerla en mb/s
@@ -306,11 +324,11 @@ namespace PeerToPeerTcpUdp
 			get { return mVelocidadDeBajada; }
 		}
 
-		#endregion
+		#endregion "Propiedades"
 
 		#region "Rutinas Publicas"
 
-		public PeerToPeerTcpUdp()
+		public PeerToPeerTcp()
 		{
 			InitializeComponent();
 		}
@@ -326,9 +344,9 @@ namespace PeerToPeerTcpUdp
 		private long mCantBytesTransmitidosTemp = -1;
 		private long mCantBytesRecibidosTemp = -1;
 		private DateTime mTiempoUltimaMuestra;
-		
 
-		void mTimerVelocidad_Elapsed(object sender, ElapsedEventArgs e)
+
+		private void mTimerVelocidad_Elapsed(object sender, ElapsedEventArgs e)
 		{
 			//mTimerVelocidad.Stop();
 			if (mCantBytesTransmitidosTemp == -1)
@@ -345,8 +363,8 @@ namespace PeerToPeerTcpUdp
 
 				TimeSpan mTiempoTranscurrido = mTiempo - mTiempoUltimaMuestra;
 
-				mVelocidadDeSubida = ((Single)(((mTe - mCantBytesTransmitidosTemp) * 8) / mTiempoTranscurrido.TotalSeconds));
-				mVelocidadDeBajada = ((Single)(((mTr - mCantBytesRecibidosTemp) * 8) / mTiempoTranscurrido.TotalSeconds));
+				mVelocidadDeSubida = ((Single) (((mTe - mCantBytesTransmitidosTemp)*8)/mTiempoTranscurrido.TotalSeconds));
+				mVelocidadDeBajada = ((Single) (((mTr - mCantBytesRecibidosTemp)*8)/mTiempoTranscurrido.TotalSeconds));
 
 				mCantBytesTransmitidosTemp = mTe;
 				mCantBytesRecibidosTemp = mTr;
@@ -354,7 +372,7 @@ namespace PeerToPeerTcpUdp
 			}
 
 
-			
+
 
 
 
@@ -363,12 +381,12 @@ namespace PeerToPeerTcpUdp
 
 			start = new TimeSpan(DateTime.Now.Ticks);
 			stop = new TimeSpan(DateTime.Now.Ticks);
-						
-						
+
+
 
 		}
 
-		public PeerToPeerTcpUdp(IContainer container)
+		public PeerToPeerTcp(IContainer container)
 		{
 			container.Add(this);
 			InitializeComponent();
@@ -381,13 +399,14 @@ namespace PeerToPeerTcpUdp
 		/// <returns>Devuelve un string con el estado completo del control</returns>
 		public String Status()
 		{
-			string mT = "Datos Buffer Recepcion: " + this.CantidadDatosBufferRecepcion + "\r\n";
+			string mT = "Tipo de Sock: TCP" + "\r\n";
+			mT = mT + "Datos Buffer Recepcion: " + this.CantidadDatosBufferRecepcion + "\r\n";
 			mT = mT + "Datos Buffer Transmision: " + this.CantidadDatosBufferEnvio + "\r\n";
 			mT = mT + "Bytes Recibidos: " + this.CantBytesRecibidos + "\r\n";
 			mT = mT + "Vel Bajada: " + this.VelocidadDeBajada.ToString("F") + " bit/s" + "\r\n";
 			mT = mT + "Bytes Transmitidos: " + this.CantBytesTrasmitidos + "\r\n";
 			mT = mT + "Vel Subida: " + this.VelocidadDeSubida.ToString("F") + " bit/s" + "\r\n";
-			
+
 
 			mT = mT + "\r\n";
 			if (this.EndPointRemoto != null)
@@ -420,6 +439,9 @@ namespace PeerToPeerTcpUdp
 			{
 				mSempAccionesDeEntrada.WaitOne();
 				Console.WriteLine("Metodo connect");
+
+				//if (TipoSock == eTipoSock.TCP)
+				//{
 				if (mEstadoSock != eEstadosSock.Handshaking)
 				{
 					if (ipEndPoint != null)
@@ -430,9 +452,24 @@ namespace PeerToPeerTcpUdp
 					DetenerSockEscucha();
 					mEstadoListen = eEstadosListen.Cerrado;
 					Console.WriteLine("Conectando...");
-					ClearAll();
-					CrearSubProcesoEschucha();
+
 				}
+				//}
+				//else
+				//{
+				//	//Sock UDP
+				//	if (ipEndPoint != null)
+				//	{
+				//		mIpRemota = ipEndPoint;
+				//	}
+				//}
+
+				ClearAll();
+				CrearSubProcesoEnvioEscucha();
+				//if (TipoSock == eTipoSock.UDP)
+				//{
+				//	CrearSubProcesoEscuchaUDP();
+				//}
 			}
 			catch (Exception)
 			{
@@ -443,11 +480,12 @@ namespace PeerToPeerTcpUdp
 				mSempAccionesDeEntrada.Release();
 			}
 		}
+
 		/// <summary>
 		/// Cierra todos los socket abiertos
 		/// </summary>
 		/// <param name="clearAll">Si es true borra todos los buferes usados</param>
-		public void Disconnect(bool clearAll =false)
+		public void Disconnect(bool clearAll = false)
 		{
 			try
 			{
@@ -581,18 +619,7 @@ namespace PeerToPeerTcpUdp
 			}
 		}
 
-		private void PonerAEscucharElSock()
-		{
-			if (mEstadoSock == eEstadosSock.Cerrado)
-			{
-				mListenPedidoUsuario = true;
-				if (Escuchando == false)
-				{
-					mEstadoListen = eEstadosListen.AbriendoEscucha;
-				}
-				CrearSubProcesoEschucha();
-			}
-		}
+
 
 
 		/// <summary>
@@ -695,11 +722,11 @@ namespace PeerToPeerTcpUdp
 						//mTemp = new byte[1] {(byte) eCaracteresEsp.Data};
 						//Array.Copy(mTemp, 0, mBufferSalida, mBufferSalida.Length - datos.Length - 2, mTemp.Length);
 						//Array.Copy(datos, 0, mBufferSalida, mBufferSalida.Length - datos.Length - 1, datos.Length);
-						mBufferSalida.Add((byte)eCaracteresEsp.Data);
+						mBufferSalida.Add((byte) eCaracteresEsp.Data);
 						mBufferSalida.AddRange(datos);
 						//mTemp = new byte[1] {(byte) eCaracteresEsp.Fin};
 						//Array.Copy(mTemp, 0, mBufferSalida, mBufferSalida.Length - 1, mTemp.Length);
-						mBufferSalida.Add((byte)eCaracteresEsp.Fin);
+						mBufferSalida.Add((byte) eCaracteresEsp.Fin);
 					}
 					catch (Exception)
 					{
@@ -739,6 +766,7 @@ namespace PeerToPeerTcpUdp
 		{
 			SendComando(System.Text.ASCIIEncoding.ASCII.GetBytes(comando), datos);
 		}
+
 		/// <summary>
 		/// Envia datos a traves del sock a un sock remoto
 		/// </summary>
@@ -748,6 +776,7 @@ namespace PeerToPeerTcpUdp
 		{
 			SendComando(comando, System.Text.ASCIIEncoding.ASCII.GetBytes(datos));
 		}
+
 		/// <summary>
 		/// Envia datos a traves del sock a un sock remoto
 		/// </summary>
@@ -786,14 +815,14 @@ namespace PeerToPeerTcpUdp
 						if (mBufferEntrada.Count > count)
 						{
 							byte[] mTemp = new byte[count];
-							mBufferEntrada.CopyTo(0,mTemp,0,count);
-							mBufferEntrada.RemoveRange(0,count);
+							mBufferEntrada.CopyTo(0, mTemp, 0, count);
+							mBufferEntrada.RemoveRange(0, count);
 							return mTemp;
 						}
 						else
 						{
 							byte[] mTemp = new byte[mBufferEntrada.Count];
-							mBufferEntrada.CopyTo( mTemp);
+							mBufferEntrada.CopyTo(mTemp);
 							mBufferEntrada.Clear();
 							return mTemp;
 						}
@@ -817,6 +846,7 @@ namespace PeerToPeerTcpUdp
 				mSempAccionesDeEntrada.Release();
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento conexion establecida
 		/// </summary>
@@ -834,6 +864,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento conexion cancelada
 		/// </summary>
@@ -851,6 +882,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento escucha iniciada
 		/// </summary>
@@ -868,6 +900,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento iniciando escucha
 		/// </summary>
@@ -885,6 +918,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento escucha cancelada
 		/// </summary>
@@ -917,6 +951,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento conexion perdida
 		/// </summary>
@@ -934,6 +969,7 @@ namespace PeerToPeerTcpUdp
 				}
 			}
 		}
+
 		/// <summary>
 		/// Desencadena el evento comando recibido
 		/// </summary>
@@ -953,7 +989,7 @@ namespace PeerToPeerTcpUdp
 		}
 
 
-		#endregion
+		#endregion "Rutinas Publicas"
 
 		#region "Rutinas Privadas"
 
@@ -975,7 +1011,7 @@ namespace PeerToPeerTcpUdp
 		{
 			if (mSockTcpEscucha == null)
 			{
-				
+
 				mSockTcpEscucha = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, mPuertoEscucha);
 				Console.WriteLine("Sock de escucha creado");
 				try
@@ -1007,30 +1043,36 @@ namespace PeerToPeerTcpUdp
 			}
 		}
 
-		private void CrearSubProcesoEschucha()
+		private void PonerAEscucharElSock()
 		{
-			if (ElSubProcesoSeEstaEjecutando() == false)
+			//if (mTipoSock == eTipoSock.TCP)
+			//{
+			if (mEstadoSock == eEstadosSock.Cerrado)
 			{
-				mCancelarSubProceso = false;
-
-				mTHreadEscucha = new System.Threading.Thread(SubProcesoEschucha);
-				mTHreadEscucha.IsBackground = true;
-				mTHreadEscucha.Name = "TrabajoClienteServidorTCP";
-				Console.WriteLine("Lanzando sub proceso TCPIP");
-				mTHreadEscucha.Start();
+				mListenPedidoUsuario = true;
+				if (Escuchando == false)
+				{
+					mEstadoListen = eEstadosListen.AbriendoEscucha;
+				}
+				CrearSubProcesoEnvioEscucha();
 			}
+			//}
+			//else
+			//{
+			//	if (mEstadoSock == eEstadosSock.Cerrado)
+			//	{
+			//		//mListenPedidoUsuario = true;
+			//		if (Escuchando == false)
+			//		{
+			//			mEstadoListen = eEstadosListen.Escuchando;
+			//			mEscuchando = true;
+			//		}
+			//		CrearSubProcesoEnvioEscucha();
+			//		CrearSubProcesoEscuchaUDP();
+			//	}
+			//}
 		}
 
-		private bool ElSubProcesoSeEstaEjecutando()
-		{
-			//if (mTHreadEscucha == null || mTHreadEscucha.ThreadState == System.Threading.ThreadState.Stopped)
-			if(mSubProcesoEjecutandose==false)
-			{
-				return false;
-			}
-			return true;
-		}
-			
 		private void RutinaEscuchando()
 		{
 			if (mListenPedidoUsuario)
@@ -1053,7 +1095,7 @@ namespace PeerToPeerTcpUdp
 						if (mEstadoSock == eEstadosSock.Cerrado)
 						{
 							mSockTcp = mSockTcpEscucha.AcceptTcpClient();
-							mIpRemota = (System.Net.IPEndPoint)mSockTcp.Client.RemoteEndPoint;
+							mIpRemota = (System.Net.IPEndPoint) mSockTcp.Client.RemoteEndPoint;
 							Console.WriteLine("Cliente Conectado");
 							mEstadoSock = eEstadosSock.Handshaking;
 							Console.WriteLine("Conexion establecida");
@@ -1113,7 +1155,7 @@ namespace PeerToPeerTcpUdp
 
 		private void RutinaConectado()
 		{
-			if (mSockTcp.Connected)
+			if (mSockTcp.Connected) //TipoSock == eTipoSock.UDP ||
 			{
 				byte[] mEnvioTemp = new byte[0];
 				try
@@ -1135,36 +1177,51 @@ namespace PeerToPeerTcpUdp
 
 				do
 				{
-					if (mSockTcp.Available > 0)
+					if (mSockTcp != null)
 					{
-						Console.WriteLine("datos disponibles: " + mSockTcp.Available);
-						System.IO.Stream mStream = mSockTcp.GetStream();
-						byte[] mRecibido = new byte[mSockTcp.Available];
-						mCantBytesRecibidos = mCantBytesRecibidos + mRecibido.Length;
-						mStream.Read(mRecibido, 0, mRecibido.Length);
-
-						ProcesarComandos(ref mRecibido);
-						//LimpiarCaracteresEspeciales(ref Recibido);
-
-						if (mRecibido.Length > 0)
+						if (mSockTcp.Available > 0)
 						{
-							mSempBufferEntrada.WaitOne();
-							mBufferEntrada.AddRange(mRecibido);
-							mSempBufferEntrada.Release();
-							OnDatosRecibidos(mRecibido);
+							Console.WriteLine("datos disponibles: " + mSockTcp.Available);
+							System.IO.Stream mStream = mSockTcp.GetStream();
+							byte[] mRecibido = new byte[mSockTcp.Available];
+							mCantBytesRecibidos = mCantBytesRecibidos + mRecibido.Length;
+							mStream.Read(mRecibido, 0, mRecibido.Length);
+
+							ProcesarComandos(ref mRecibido);
+							//LimpiarCaracteresEspeciales(ref Recibido);
+
+							if (mRecibido.Length > 0)
+							{
+								mSempBufferEntrada.WaitOne();
+								mBufferEntrada.AddRange(mRecibido);
+								mSempBufferEntrada.Release();
+								OnDatosRecibidos(mRecibido);
+							}
 						}
 					}
 
 					if (mEnvioTemp.Length > 0)
 					{
 						Console.WriteLine("enviando datos: " + mBufferSalida.Count);
-						System.IO.Stream mStream = mSockTcp.GetStream();
+						System.IO.Stream mStream = null;
+						//if (TipoSock == eTipoSock.TCP)
+						//{
+						mStream = mSockTcp.GetStream();
+						//}
+
 
 						if ((mEnvioTemp.Length - mIndice) >= mCantidadPorCadaEnvio)
 						{
 							try
 							{
+								//if (TipoSock == eTipoSock.TCP)
+								//{
 								mStream.Write(mEnvioTemp, mIndice, mCantidadPorCadaEnvio);
+								//}
+								//else
+								//{
+								//	mSockUdpSender.Send(mEnvioTemp, mEnvioTemp.Length, EndPointRemoto);
+								//}
 							}
 							catch (Exception)
 							{
@@ -1177,7 +1234,14 @@ namespace PeerToPeerTcpUdp
 							int mCantEnviado = mEnvioTemp.Length - mIndice;
 							try
 							{
+								//if (TipoSock == eTipoSock.TCP)
+								//{
 								mStream.Write(mEnvioTemp, mIndice, mCantEnviado);
+								//}
+								//else
+								//{
+								//	mSockUdpSender.Send(mEnvioTemp, mEnvioTemp.Length, EndPointRemoto);
+								//}
 							}
 							catch (Exception)
 							{
@@ -1193,8 +1257,11 @@ namespace PeerToPeerTcpUdp
 							if (mEnvioCheckConexion)
 							{
 								mEnvioCheckConexion = false;
-								System.IO.Stream mStream = mSockTcp.GetStream();
 								byte[] mTest = new byte[1] {(byte) eCaracteresEsp.Ok};
+
+								//if (TipoSock == eTipoSock.TCP)
+								//{
+								System.IO.Stream mStream = mSockTcp.GetStream();
 								try
 								{
 									mStream.Write(mTest, 0, mTest.Length);
@@ -1203,10 +1270,22 @@ namespace PeerToPeerTcpUdp
 								catch
 								{
 								}
+								//}
+								//else
+								//{
+								//	try
+								//	{
+								//		mSockUdpSender.Send(mTest, 1, EndPointRemoto);
+								//	}
+								//	catch (Exception)
+								//	{
+								//		throw;
+								//	}
+								//}
 							}
 						}
 					}
-				} while (mSockTcp.Available > 0 || mIndice < mEnvioTemp.Length);
+				} while (mIndice < mEnvioTemp.Length || ((mSockTcp.Available > 0))); //(TipoSock == eTipoSock.TCP) && 
 			}
 			else
 			{
@@ -1281,7 +1360,7 @@ namespace PeerToPeerTcpUdp
 				recibido = new byte[0];
 				return;
 			}
-			
+
 			List<byte> mRecibidosTemp = new List<byte>();
 			List<byte> mComandos = new List<byte>();
 			List<byte> mDatos = new List<byte>();
@@ -1311,16 +1390,17 @@ namespace PeerToPeerTcpUdp
 						//disparar evento
 						OnComandoRecibido();
 						mComandoRecibidos.Clear();
-						mComandos.Clear(); 
-						mDatos.Clear(); 
+						mComandos.Clear();
+						mDatos.Clear();
 					}
 				}
 			}
 			mComandoRecibidos.Comando.AddRange(mComandos);
 			mComandoRecibidos.Dato.AddRange(mDatos);
-			recibido=new byte[mRecibidosTemp.Count];
+			recibido = new byte[mRecibidosTemp.Count];
 			mRecibidosTemp.CopyTo(recibido);
 		}
+
 		/// <summary>
 		/// Esta rutina retorna true si el caracter pasado es valido, o falso si el caracter pasado debe suprimirse
 		/// </summary>
@@ -1479,26 +1559,67 @@ namespace PeerToPeerTcpUdp
 		//	return mPositions;
 		//}
 
-		#endregion
+		#endregion "Rutinas Privadas"
+
+		#region "Control Sub Procesos"
+
+		private void CrearSubProcesoEnvioEscucha()
+		{
+			if (ElSubProcesoEnvioEscuchaSeEstaEjecutando() == false)
+			{
+				mCancelarSubProceso = false;
+
+				mTHreadEnvioEscucha = new System.Threading.Thread(SubProcesoDeEnvioEscucha);
+				mTHreadEnvioEscucha.IsBackground = true;
+				mTHreadEnvioEscucha.Name = "SubProcesoEnvioEscucha";
+				mTHreadEnvioEscucha.Start();
+			}
+		}
+
+		private void CrearSubProcesoEscuchaUDP()
+		{
+			if (mTareaEscuchaUDP == null || mTareaEscuchaUDP.Status != TaskStatus.Running)
+			{
+				mTokenSourceCancelmTareaEscuchaUDP = new CancellationTokenSource();
+				mTokenCancelmTareaEscuchaUDP = mTokenSourceCancelmTareaEscuchaUDP.Token;
+				mTareaEscuchaUDP = new System.Threading.Tasks.Task(new Action(SupProcesoEscuchaUDP), mTokenCancelmTareaEscuchaUDP);
+				mTareaEscuchaUDP.Start();
+			}
+		}
+
+		private bool ElSubProcesoEnvioEscuchaSeEstaEjecutando()
+		{
+			//if (mTHreadEnvioEscucha == null || mTHreadEnvioEscucha.ThreadState == System.Threading.ThreadState.Stopped)
+			if (mSubProcesoEjecutandose == false)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		#endregion "Control Sub Procesos"
 
 		#region "SubProcesos"
 
 		private bool mSubProcesoEjecutandose = false;
 
-		private void SubProcesoEschucha()
+		private void SubProcesoDeEnvioEscucha()
 		{
 			try
 			{
+				Console.WriteLine("SubProcesoDeEnvioEscucha() Iniciado");
 				mSempManualEsperadeApagado.Reset();
 				mSubProcesoEjecutandose = true;
-				
-				Console.WriteLine("SubProceso Iniciado");
 
 				if (mTimer == null)
 				{
 					mTimer = new System.Timers.Timer(mTiempomSegTestConexion);
 					mTimer.Elapsed += mTimer_Elapsed;
 					mTimer.Start();
+				}
+				if (mSockUdpSender == null)
+				{
+					mSockUdpSender = new UdpClient();
 				}
 
 				while (mCancelarSubProceso == false)
@@ -1519,9 +1640,13 @@ namespace PeerToPeerTcpUdp
 							RutinaConectado();
 							break;
 						case eEstadosSock.Cerrado:
+							//if (TipoSock == eTipoSock.UDP)
+							//{
+							//	RutinaConectado();
+							//}
 							break;
 					}
-					System.Threading.Thread.Sleep(100);
+					System.Threading.Thread.Sleep(10);
 				}
 				DetenerSockEscucha();
 				DetenerSock();
@@ -1530,7 +1655,6 @@ namespace PeerToPeerTcpUdp
 					mTimer.Stop();
 					mTimer = null;
 				}
-				Console.WriteLine("SubProceso Destruido");
 			}
 			catch (Exception)
 			{
@@ -1542,8 +1666,26 @@ namespace PeerToPeerTcpUdp
 				mEstadoSock = eEstadosSock.Cerrado;
 				mSubProcesoEjecutandose = false;
 				mSempManualEsperadeApagado.Set();
+				Console.WriteLine("SubProcesoDeEnvioEscucha() Terminado");
 			}
 		}
-		#endregion
+
+		private void SupProcesoEscuchaUDP()
+		{
+			Console.WriteLine("SupProcesoEscuchaUDP() Iniciado");
+			Thread.CurrentThread.Name = "SubProcesoEscuchaUDP";
+			if (mSockUdpReceive == null)
+			{
+				mSockUdpReceive = new UdpClient(new IPEndPoint(IPAddress.Any, PuertoEscucha));
+			}
+
+			while (mTokenCancelmTareaEscuchaUDP.IsCancellationRequested == false)
+			{
+				byte[] datos = mSockUdpReceive.Receive(ref mIpRemota);
+			}
+			Console.WriteLine("SupProcesoEscuchaUDP() Terminado");
+		}
+
+		#endregion "SubProcesos"
 	}
 }

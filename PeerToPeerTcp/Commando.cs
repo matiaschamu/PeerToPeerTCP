@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
-namespace PeerToPeerTcpUdp
+namespace PeerToPeer.Tcp
 {
 	public class Commando
 	{
@@ -36,34 +35,22 @@ namespace PeerToPeerTcpUdp
 
 		public byte[] CommandoBytes
 		{
-			get
-			{
-				return Comando.ToArray();
-			}
+			get { return Comando.ToArray(); }
 		}
 
 		public string CommandoString
 		{
-			get
-			{
-				return System.Text.Encoding.ASCII.GetString(CommandoBytes);
-			}
+			get { return System.Text.Encoding.ASCII.GetString(CommandoBytes); }
 		}
 
 		public byte[] DatosBytes
 		{
-			get
-			{
-				return Dato.ToArray();
-			}
+			get { return Dato.ToArray(); }
 		}
 
 		public string DatosString
 		{
-			get
-			{
-				return System.Text.Encoding.ASCII.GetString(DatosBytes);
-			}
+			get { return System.Text.Encoding.ASCII.GetString(DatosBytes); }
 		}
 
 		public void Clear()
